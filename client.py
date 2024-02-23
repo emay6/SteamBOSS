@@ -7,7 +7,9 @@ class SteamBOSS(discord.Client):
 
     async def on_message(self, msg):
         print(f"Message from {msg.author}: {msg.content}")
-
+        if (msg.content=="!Hello_Boss"):
+            await msg.reply("Hello World!")
+    
 intents = discord.Intents.default()
 intents.message_content = True
 BOT_TOKEN = ""
