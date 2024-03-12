@@ -18,12 +18,12 @@ class SteamBossCommands(commands.Cog):
 
     @commands.hybrid_command(name="add_personal_wl", description="Adds a game to the user's wishlist.")
     async def add_personal_wl(self, ctx: commands.Context, game) -> None:
-        await ctx.send(content = (game, "added to personal wishlist!"))
+        await ctx.send(content = game + "added to personal wishlist!")
 
     @commands.hybrid_command(name="add_server_wl", description="Adds a game to the server-wide wishlist.")
     async def add_server_wl(self, ctx: commands.Context, game: str) -> None:
         self.serverWL.append(game)
-        await ctx.send(content = (game, "added to server wishlist!"))
+        await ctx.send(content = game + "added to server wishlist!")
     
     @commands.hybrid_command(name="print_server_wl", description="Prints the server-wide wishlist.")
     async def print_server_wl(self, ctx: commands.Context) -> None:
