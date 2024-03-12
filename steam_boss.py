@@ -20,7 +20,7 @@ async def on_ready():
     print(f"Logged on as {bot.user}")
 
 # Syncs commands with Discord - DISABLE for production build
-# !sync - syncs all global commands with Discord
+# !sync - syncs all global commands with Discord (CURRENTLY NOT IMPLEMENTED)
 # !sync * - syncs all global commands to the test servers (useful for testing)
 # !sync ^ - clears all commands in the current server
 @bot.command()
@@ -31,6 +31,7 @@ async def sync(ctx: commands.Context, spec: Optional[Literal["*", "^"]] = None) 
     if spec == "*":
         for server in valid_servers:
             try:
+                ctx.bot.tree.clear_commands(guild=server)
                 ctx.bot.tree.copy_global_to(guild=server)
                 synced = await ctx.bot.tree.sync(guild=server)
             except discord.HTTPException:
@@ -40,7 +41,9 @@ async def sync(ctx: commands.Context, spec: Optional[Literal["*", "^"]] = None) 
         await ctx.bot.tree.sync(guild=ctx.guild)
         synced = []
     else:
-        synced = await ctx.bot.tree.sync()
+        # currently clears all global commands - can change later
+        ctx.bot.tree.clear_commands(guild=None)
+        synced = await ctx.bot.tree.sync(guild=None)
 
     await ctx.send(f"Synced {len(synced)} commands {'globally.' if spec is None else 'to the test servers.'}")
     return
