@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 from web_scraper import search_steam
@@ -57,3 +58,51 @@ class SteamBossCommands(commands.Cog):
     @commands.hybrid_command(name="print_server_wl", description="Prints the server-wide wishlist.")
     async def print_server_wl(self, ctx: commands.Context) -> None:
         await ctx.send("Server Wishlist:")
+  
+    @commands.hybrid_command(name="page_test", description="used for testing pages only!")
+    async def page_help(self, ctx):
+        page1 = discord.Embed(title="Bot Test 1",description="Use the buttons to see if this stuff works.", colour=discord.Colour.dark_blue())
+        page2 = discord.Embed(title="Bot Test 2",description="Page 2 test", colour=discord.Colour.green())
+        page3 = discord.Embed(title="Bot Test 3",description="Page 3 test", colour=discord.Colour.red())
+        
+        self.pages = [page1,page2,page3]
+        
+        buttons = [u"\u23EA", u"\u25C0",u"\u25B6",u"\u23E9"]
+        current_page = 0
+        msg = await ctx.send(embed=self.pages[current_page])
+        
+        for button in buttons:
+            await msg.add_reaction(button)
+        
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for("reaction_add", check=lambda reaction, user: user == ctx.author and reaction.emoji in buttons, timeout=60.0)
+
+            except asyncio.TimeoutError:
+                return print("test")
+
+            else:
+                reaction_num=0
+                previous_page = current_page
+                if reaction.emoji == buttons[0]:
+                    current_page = 0
+                    reaction_num=0
+                    
+                elif reaction.emoji == buttons[1]:
+                    if current_page > 0:
+                        current_page -= 1
+                        reaction_num=1
+                        
+                elif reaction.emoji == buttons[2]:
+                    if current_page < len(self.pages)-1:
+                        current_page += 1
+                        reaction_num=2
+
+                elif reaction.emoji == buttons[3]:
+                    current_page = len(self.pages)-1
+                    reaction_num=3
+                    
+                if current_page != previous_page:
+                    await msg.edit(embed=self.pages[current_page])
+                    
+                await msg.remove_reaction(buttons[reaction_num], ctx.author)
