@@ -48,7 +48,7 @@ class SteamBossCommands(commands.Cog):
             game_embed.title = game_info.title
             game_embed.description = game_info.description
             game_embed.set_image(url=game_info.header_url)
-            id = ctx.message.guild.id
+            id = ctx.guild.id
             self.serverWL[id].append(game_info)
             
         else:
