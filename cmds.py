@@ -6,6 +6,7 @@ from web_scraper import search_steam
 class SteamBossCommands(commands.Cog):
     personalWL = {} # Stores by user id
     serverWL = {} # Stores by server id
+    
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -48,7 +49,10 @@ class SteamBossCommands(commands.Cog):
             game_embed.title = game_info.title
             game_embed.description = game_info.description
             game_embed.set_image(url=game_info.header_url)
-
+            serverID = ctx.message.guild.id
+            if serverID not in self.serverWL:
+                self.serverWL[serverID] = []
+            self.serverWL[serverID].append(game_info)
             
         else:
             game_embed.description = f"Could not find any game using your search of \"{game}\"."
@@ -57,8 +61,33 @@ class SteamBossCommands(commands.Cog):
     
     @commands.hybrid_command(name="print_server_wl", description="Prints the server-wide wishlist.")
     async def print_server_wl(self, ctx: commands.Context) -> None:
-        await ctx.send("Server Wishlist:")
-  
+        serverID = ctx.message.guild.id
+        if serverID not in self.serverWL:
+            await ctx.send("Server Wishlist is currently empty.")
+        else:
+            list = self.serverWL[serverID]
+            message = "Server Wishlist:\n"
+            if(len(list) > 0):
+                for game in list:
+                    message += (game.title + "\n")
+            await ctx.send(content = message)
+
+    @commands.hybrid_command(name="delete_server_wl", description="Deletes a game from the server-wide wishlist.")
+    async def delete_server_wl(self, ctx: commands.Context, game: str) -> None:
+        serverID = ctx.message.guild.id
+        if serverID not in self.serverWL:
+            await ctx.send("Error: Server Wishlist is currently empty.")
+        else:
+            search = search_steam(game, amount=1)
+            game_info = search[0]
+            list = self.serverWL[serverID]
+            if game_info not in list:
+                await ctx.send("Error: " + game_info.title + " is not in Server Wishlist.")
+            else:
+                list.remove(game_info)
+                await ctx.send(game_info.title + " was successfully removed from Server Wishlist.")
+            
+      
     @commands.hybrid_command(name="page_test", description="used for testing pages only!")
     async def page_help(self, ctx):
         page1 = discord.Embed(title="Bot Test 1",description="Use the buttons to see if this stuff works.", colour=discord.Colour.dark_blue())
