@@ -5,6 +5,7 @@ from web_scraper import search_steam
 class SteamBossCommands(commands.Cog):
     personalWL = {} # Stores by user id
     serverWL = {} # Stores by server id
+    
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -47,7 +48,8 @@ class SteamBossCommands(commands.Cog):
             game_embed.title = game_info.title
             game_embed.description = game_info.description
             game_embed.set_image(url=game_info.header_url)
-
+            id = ctx.message.guild.id
+            self.serverWL[id].append(game_info)
             
         else:
             game_embed.description = f"Could not find any game using your search of \"{game}\"."
@@ -56,4 +58,11 @@ class SteamBossCommands(commands.Cog):
     
     @commands.hybrid_command(name="print_server_wl", description="Prints the server-wide wishlist.")
     async def print_server_wl(self, ctx: commands.Context) -> None:
-        await ctx.send("Server Wishlist:")
+        id = ctx.message.guild.id
+        list = self.serverWL[id]
+        if(len(list) > 0):
+            await ctx.send("Server Wishlist:")
+            for game in list:
+                ctx.send(content = game.title)
+        else:
+            await ctx.send("Server Wishlist is currently empty.")
