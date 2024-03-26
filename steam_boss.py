@@ -1,5 +1,5 @@
 import discord
-from cmds import SteamBossCommands
+from cmds import SteamBossCommands, save_wishlists
 from discord.ext import commands
 
 from typing import Literal, Optional
@@ -7,13 +7,20 @@ from typing import Literal, Optional
 intents = discord.Intents.default()
 intents.message_content = True   
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+class SteamBOSS(commands.Bot):
+    async def close(self):
+        print("Disconnecting bot")
+        #save_wishlists()
+
+        await super().close()
+
+bot = SteamBOSS(command_prefix="!", intents=intents)
 
 # List of servers for the sync command, used for testing
 valid_servers = [discord.Object(id=464462171703869440), discord.Object(id=1208158746300383302)]
 
 # Events
-    
+ 
 @bot.event
 async def on_ready():
     await setup()

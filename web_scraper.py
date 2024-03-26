@@ -3,16 +3,19 @@ import sys
 import json
 from typing import List
 from bs4 import BeautifulSoup
-from steam_game import SteamGame, save_game, load_game, SAVE_PATH
+from steam_game import SteamGame, SteamReview, save_game, load_game, SAVE_PATH
 
 STEAM_URL = "https://store.steampowered.com"
 STEAM_CDN_URL = "https://cdn.akamai.steamstatic.com"
+STEAM_COMM_URL = "https://steamcommunity.com"
+THUMBS_UP_URL = "https://community.akamai.steamstatic.com/public/shared/images/userreviews/icon_thumbsUp.png"
+THUMBS_DOWN_URL = "https://community.akamai.steamstatic.com/public/shared/images/userreviews/icon_thumbsDown.png"
 
 def request_steam(url: str) -> requests.Response:
     """Function to help request a page from Steam."""
     req = requests.get(url)
     if (req.status_code != 200):
-        raise requests.HTTPError("An error occurred while attempting to access Steam. HTTP error code: " + req.status_code)
+        raise requests.HTTPError("An error occurred while attempting to access Steam.")
     
     return req
 
@@ -34,7 +37,8 @@ def get_game_info(game_id: str) -> SteamGame:
     except FileNotFoundError:
         pass
     
-    page_request = request_steam(STEAM_URL + "/app/" + game_id)
+    game_url = STEAM_URL + "/app/" + game_id
+    page_request = request_steam(game_url)
     
     # Checks if the id provided was a valid game (i.e. check if a valid game page was recieved)
     page = BeautifulSoup(page_request.content, features="html.parser")
@@ -46,6 +50,7 @@ def get_game_info(game_id: str) -> SteamGame:
     game_info.id = game_id
     game_info.title = page.find(id="appHubAppName").text
     game_info.header_url = STEAM_CDN_URL + "/steam/apps/" + game_id + "/header.jpg"
+    game_info.game_url = game_url
 
     desc = page.find(class_="game_description_snippet")
     if desc is not None:
@@ -85,19 +90,70 @@ def search_steam(search_query: str, amount: int = 10) -> List[SteamGame]:
     results = []
     i = 1
     search_rows = page.find_all(class_="search_result_row")
-    for game in search_rows:
-        # Only get a certain amount of results
-        if i > amount:
-            break
-        # The game's id, ignoring things like special editions, duplicates, etc.
-        game_id = game["data-ds-appid"].split(",")[0]
-        if game_id not in seen:
-            seen.append(game_id)
-            results.append(get_game_info(game_id))
-        
-        i += 1
+    try:
+        for game in search_rows:
+            # Only get a certain amount of results
+            if i > amount:
+                break
+            # The game's id, ignoring things like special editions, duplicates, etc.
+            game_id = game["data-ds-appid"].split(",")[0]
+            if game_id not in seen:
+                seen.append(game_id)
+                results.append(get_game_info(game_id))
+            
+            i += 1
+    except ValueError:
+        return None
     
     return results
+
+def get_game_reviews(game_id: str, positive: bool = None) -> List[SteamReview]:
+    """
+    Returns a list of the given game's reviews. By default returns any type of review. The 'positive' argument affects whether to only show positive or negative reviews.
+    
+    Only returns the first 10 reviews.
+    """
+    # Changes the url depending on the type of reviews we want to recieve
+    review_url = "/reviews/"
+    if positive is not None:
+        review_url = "/positivereviews/" if positive else "/negativereviews/"
+    
+    
+    page_request = request_steam(STEAM_COMM_URL + "/app/" + game_id + review_url + "?p=1&browsefilter=toprated")
+
+    page = BeautifulSoup(page_request.content, features="html.parser")
+
+    if "apphub_blue" not in page.body["class"]:
+        raise ValueError(f"No game with ID '{game_id}' was found.")
+
+    # Parse reviews
+    reviews = []
+    for review in page.find_all(class_="apphub_Card"):
+        game_review = SteamReview()
+        game_review.recommended = (review.find_next(class_="title").text == "Recommended")
+        game_review.rec_url = THUMBS_UP_URL if game_review.recommended else THUMBS_DOWN_URL
+        game_review.review_url = review["data-modal-content-url"]
+        game_review.hours_on_record = review.find_next(class_="hours").text
+        game_review.date_posted = review.find_next(class_="date_posted").text.strip()[8:]
+
+        content = review.find_next(class_="apphub_CardTextContent").contents
+        content_str = ""
+        # Format the review to look nicer
+        for elem in content:
+            if isinstance(elem, str):
+                content_str += elem.strip()
+            elif elem.name == "br":
+                content_str += "\n"
+        
+        game_review.content = content_str.strip()
+        # If review is too long, cut it off to fit in discord
+        if (len(game_review.content) > 4096):
+            game_review.content = game_review.content[:4093] + "..."
+        game_review.author = review.find_next(class_="apphub_CardContentAuthorName").a.text
+
+        reviews.append(game_review)
+    
+    return reviews
 
 # Testing code
 if __name__ == "__main__":
@@ -109,7 +165,8 @@ if __name__ == "__main__":
             print("-----------------------")
             print(game)
     elif len(sys.argv) == 2:
-        games = search_steam(sys.argv[1])
-        for game in games:
+        reviews = get_game_reviews(sys.argv[1])
+        for review in reviews:
             print("-----------------------")
-            print(game)
+            print(review)
+            print("URL: " + review.review_url)

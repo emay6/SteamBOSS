@@ -1,25 +1,49 @@
 import asyncio
 import discord
+import os
+import json
 from discord.ext import commands
-from web_scraper import search_steam
+from web_scraper import search_steam, get_game_reviews, get_game_info
 
-class SteamBossCommands(commands.Cog):
-    personalWL = {} # Stores by user id
-    serverWL = {} # Stores by server id
-    
+USER_WL_SAVE_PATH = "data/wl_user_info.json"
+SERVER_WL_SAVE_PATH = "data/wl_server_info.json"
 
+personalWL = {} # Stores by user id
+serverWL = {} # Stores by server id
+
+# TODO: Saves wishlist data into files
+def save_wishlists():
+    if not os.path.exists("data"):
+        os.makedirs("data")
+
+    data = {}
+    with open(USER_WL_SAVE_PATH, "w", encoding="utf-8") as user_wl, open(SERVER_WL_SAVE_PATH, "w", encoding="utf-8") as server_wl:
+        json.dump(personalWL, user_wl)
+        json.dump(serverWL, server_wl)
+
+# TODO: Checks if there's pre-existing data, load it if so
+def init_wishlists():
+    try:
+        with open(USER_WL_SAVE_PATH, "r+", encoding="utf-8") as user_wl, open(SERVER_WL_SAVE_PATH, "r+", encoding="utf-8") as server_wl:
+            personalWL = json.load(user_wl)
+            serverWL = json.load(server_wl)
+    except FileNotFoundError:
+        pass
+
+class SteamBossCommands(commands.GroupCog, name="wishlist"):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+        #init_wishlists()
     
-    @commands.hybrid_command(name="hello_boss", description="Replies with hello. Used for testing!")
-    async def hello_boss(self, ctx: commands.Context) -> None:
-        await ctx.send("Hello BOSS!")
+    # @commands.hybrid_command(name="hello_boss", description="Replies with hello. Used for testing!")
+    # async def hello_boss(self, ctx: commands.Context) -> None:
+    #    await ctx.send("Hello BOSS!")
     
-    @commands.hybrid_command(name="quiet_hello", description="Replies with hello, but the message is ephemeral. Used for testing!")
-    async def quiet_hello(self, ctx: commands.Context) -> None:
-        await ctx.send("Hello BOSS!", ephemeral=True)
+    # @commands.hybrid_command(name="quiet_hello", description="Replies with hello, but the message is ephemeral. Used for testing!")
+    # async def quiet_hello(self, ctx: commands.Context) -> None:
+    #    await ctx.send("Hello BOSS!", ephemeral=True)
 
-    @commands.hybrid_command(name="add_personal_wl", description="Adds a game to the user's wishlist.")
+    @commands.hybrid_command(name="add", description="Adds a game to the user's personal wishlist.")
     async def add_personal_wl(self, ctx: commands.Context, game: str) -> None:
         search = search_steam(game, amount=1)
         game_embed = discord.Embed(color=discord.Color.green())
@@ -32,43 +56,43 @@ class SteamBossCommands(commands.Cog):
             game_embed.description = game_info.description
             game_embed.set_image(url=game_info.header_url)
             userID = ctx.author.id
-            if(userID not in self.personalWL):
-                self.personalWL[userID] = []
-            self.personalWL[userID].append(game_info)
+            if(userID not in personalWL):
+                personalWL[userID] = []
+            personalWL[userID].append(game_info)
         else:
             game_embed.description = f"Could not find any game using your search of \"{game}\"."
         
         await ctx.send(content=message, embed=game_embed, ephemeral=True)
             
-    @commands.hybrid_command(name="print_personal_wl", description="Prints the user's personal wishlist.")
+    @commands.hybrid_command(name="print", description="Prints the user's personal wishlist.")
     async def print_personal_wl(self, ctx: commands.Context) -> None:
         userID = ctx.author.id
-        if userID not in self.personalWL or len(self.personalWL[userID]) == 0:
+        if userID not in personalWL or len(personalWL[userID]) == 0:
             message = ctx.author.mention + "'s Wishlist is currently empty."
         else:
-            list = self.personalWL[userID]
+            list = personalWL[userID]
             message = ctx.author.mention + "'s Wishlist:\n"
             if(len(list) > 0):
                 for game in list:
                     message += (game.title + "\n")
         await ctx.send(content = message)
 
-    @commands.hybrid_command(name="delete_personal_wl", description="Deletes a game from the user's wishlist.")
+    @commands.hybrid_command(name="delete", description="Deletes a game from the user's personal wishlist.")
     async def delete_personal_wl(self, ctx: commands.Context, game: str) -> None:
         userID = ctx.author.id
-        if userID not in self.personalWL:
+        if userID not in personalWL:
             await ctx.send(content = "Error: " + ctx.author.mention + "'s Wishlist is currently empty.", ephemeral = True)
         else:
             search = search_steam(game, amount=1)
             game_info = search[0]
-            list = self.personalWL[userID]
+            list = personalWL[userID]
             if game_info not in list:
                 await ctx.send(content = "Error: " + game_info.title + " is not in " + ctx.author.mention + "'s Wishlist.", ephemeral = True)
             else:
                 list.remove(game_info)
                 await ctx.send(content = game_info.title + " was successfully removed from " + ctx.author.mention + "'s Wishlist.", ephemeral = True)
             
-    @commands.hybrid_command(name="add_server_wl", description="Adds a game to the server-wide wishlist.")
+    @commands.hybrid_command(name="add_server", description="Adds a game to the server-wide wishlist.")
     async def add_server_wl(self, ctx: commands.Context, game: str) -> None:
         search = search_steam(game, amount=1)
         game_embed = discord.Embed(color=discord.Color.green())
@@ -81,44 +105,67 @@ class SteamBossCommands(commands.Cog):
             game_embed.description = game_info.description
             game_embed.set_image(url=game_info.header_url)
             serverID = ctx.message.guild.id
-            if serverID not in self.serverWL:
-                self.serverWL[serverID] = []
-            self.serverWL[serverID].append(game_info)
+            if serverID not in serverWL:
+                serverWL[serverID] = []
+            serverWL[serverID].append(game_info)
             
         else:
             game_embed.description = f"Could not find any game using your search of \"{game}\"."
         
         await ctx.send(content=message, embed=game_embed, ephemeral=True if message == "" else False)
     
-    @commands.hybrid_command(name="print_server_wl", description="Prints the server-wide wishlist.")
+    @commands.hybrid_command(name="print_server", description="Prints the server-wide wishlist.")
     async def print_server_wl(self, ctx: commands.Context) -> None:
         serverID = ctx.message.guild.id
-        if serverID not in self.serverWL or len(self.serverWL[serverID]) == 0:
+        if serverID not in serverWL or len(serverWL[serverID]) == 0:
             await ctx.send("Server Wishlist is currently empty.")
         else:
-            list = self.serverWL[serverID]
+            list = serverWL[serverID]
             message = "Server Wishlist:\n"
             if(len(list) > 0):
                 for game in list:
                     message += (game.title + "\n")
             await ctx.send(content = message)
 
-    @commands.hybrid_command(name="delete_server_wl", description="Deletes a game from the server-wide wishlist.")
+    @commands.hybrid_command(name="delete_server", description="Deletes a game from the server-wide wishlist.")
     async def delete_server_wl(self, ctx: commands.Context, game: str) -> None:
         serverID = ctx.message.guild.id
-        if serverID not in self.serverWL:
+        if serverID not in serverWL:
             await ctx.send("Error: Server Wishlist is currently empty.")
         else:
             search = search_steam(game, amount=1)
             game_info = search[0]
-            list = self.serverWL[serverID]
+            list = serverWL[serverID]
             if game_info not in list:
                 await ctx.send("Error: " + game_info.title + " is not in Server Wishlist.")
             else:
                 list.remove(game_info)
                 await ctx.send(game_info.title + " was successfully removed from Server Wishlist.")
-            
 
+    @commands.hybrid_command(name="reviews", description="View the top reviews for a given game.")
+    async def get_game_reviews(self, ctx: commands.Context, game: str, view_positive: bool = None) -> None:
+        pages = []
+        if game.isnumeric():
+            game = get_game_info(game)
+        else:
+            game = search_steam(game, amount=1)[0]
+        reviews = get_game_reviews(game.id, view_positive)
+
+        for review in reviews:
+            embed = discord.Embed()
+            embed.color = discord.Color.teal() if review.recommended else discord.Color.red()
+            embed.title = "Review by " + review.author
+            embed.description = review.content
+            embed.add_field(name=review.hours_on_record, value="")
+            embed.url = review.review_url
+            embed.set_thumbnail(url=game.header_url)
+            embed.set_author(name=review.date_posted, icon_url=review.rec_url)
+
+            pages.append(embed)
+        
+        # TODO: Implement actual page functionality
+        for page in pages:
+            await ctx.send(embed=page, ephemeral=True)
       
     @commands.hybrid_command(name="page_test", description="used for testing pages only!")
     async def page_help(self, ctx):
