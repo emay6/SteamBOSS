@@ -12,6 +12,8 @@ personalWL = {} # Stores by user id
 serverWL = {} # Stores by server id
 PagepersonalWL = {} #Stores by user id, pages
 PageserverWL = {} #Stores by server id, pages
+PersonalDiscountFilterL = {} #Stores filters by id, Personal
+ServerDiscountFilterL = {} #Stores filters by id, Personal
 
 # TODO: Saves wishlist data into files
 def save_wishlists():
@@ -24,6 +26,10 @@ def save_wishlists():
         json.dump(serverWL, server_wl)
         json.dump(PagepersonalWL, user_wl)
         json.dump(PageserverWL,server_wl)
+        json.dump(PersonalDiscountFilterL,user_wl)
+        json.dump(ServerDiscountFilterL,server_wl)
+        PersonalDiscountFilterL[user_wl]=0
+        ServerDiscountFilterL[server_wl]=0
 
 # TODO: Checks if there's pre-existing data, load it if so
 def init_wishlists():
@@ -33,6 +39,8 @@ def init_wishlists():
             serverWL = json.load(server_wl)
             PagepersonalWL = json.load(user_wl)
             PageserverWL = json.load(server_wl)
+            PersonalDiscountFilterL = json.load(user_wl)
+            ServerDiscountFilterL = json.load(server_wl)
     except FileNotFoundError:
         pass
 
@@ -49,19 +57,39 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
     # async def quiet_hello(self, ctx: commands.Context) -> None:
     #    await ctx.send("Hello BOSS!", ephemeral=True)
 
+    #@commands.hybrid_command(name="set_personal_discount_filter", description="Sets a discount filter for personal wishlist.")
+    #async def set_discount_personal(self, ctx: commands.Context, discountamount: float) -> None:
+    #    userID = ctx.author.id
+    #    if (discountamount<0 or discountamount>100):
+    #        message = "Invalid Discount Filter Amount, please put in a number from 0 to 100!"
+    #        await ctx.send(content = message)
+    #        return
+    #    TrueDiscountAmount = discountamount/100
+    #    PersonalDiscountFilterL[userID]=TrueDiscountAmount
+    #    message = "Successfully set Discount Filter for Personal Wishlist to ",discountamount,"."
+    #    await ctx.send(content = message)
+    #commented command to set a discount filter to adding to personal wishlist
+        
+
     @commands.hybrid_command(name="add", description="Adds a game to the user's personal wishlist.")
     async def add_personal_wl(self, ctx: commands.Context, game: str) -> None:
+        userID = ctx.author.id
         search = search_steam(game, amount=1)
         game_embed = discord.Embed(color=discord.Color.green())
         message = ""
 
         if len(search) > 0:
-            message = "The following game was successfully added to your wishlist."
             game_info = search[0]
+        #    if (game_info.discount_amount<PersonalDiscountFilterL[userID]):
+        #        message = "Game does not meet the set Discount Filter so it has not been added."
+        #        await ctx.send(content = message)
+        #        return
+        #If we want to filter adding to wishlist by discount, ask later
+            
+            message = "The following game was successfully added to your wishlist."
             game_embed.title = game_info.title
             game_embed.description = game_info.description
             game_embed.set_image(url=game_info.header_url)
-            userID = ctx.author.id
             if(userID not in personalWL):
                 personalWL[userID] = []
             if (userID not in PagepersonalWL):
@@ -147,6 +175,7 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
             
     @commands.hybrid_command(name="add_server", description="Adds a game to the server-wide wishlist.")
     async def add_server_wl(self, ctx: commands.Context, game: str) -> None:
+        serverID = ctx.message.guild.id
         search = search_steam(game, amount=1)
         game_embed = discord.Embed(color=discord.Color.green())
         message = ""
@@ -157,7 +186,6 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
             game_embed.title = game_info.title
             game_embed.description = game_info.description
             game_embed.set_image(url=game_info.header_url)
-            serverID = ctx.message.guild.id
             if serverID not in serverWL:
                 serverWL[serverID] = []
             if (serverID not in PageserverWL):
