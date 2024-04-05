@@ -2,7 +2,8 @@ import asyncio
 import discord
 import os
 import json
-from discord.ext import commands
+import datetime
+from discord.ext import commands, tasks
 from web_scraper import search_steam, get_game_reviews, get_game_info
 
 USER_WL_SAVE_PATH = "data/wl_user_info.json"
@@ -12,6 +13,8 @@ personalWL = {} # Stores by user id
 serverWL = {} # Stores by server id
 PagepersonalWL = {} #Stores by user id, pages
 PageserverWL = {} #Stores by server id, pages
+client = discord.Client
+notiChannel = {}
 
 # TODO: Saves wishlist data into files
 def save_wishlists():
@@ -37,10 +40,34 @@ def init_wishlists():
         pass
 
 class SteamBossCommands(commands.GroupCog, name="wishlist"):
+    #function that runs every __  minutes to list discounted games
+    @tasks.loop(seconds = 20)
+    async def serverDiscUpdate(self):
+        for serverID in serverWL:
+            for game in serverWL[serverID]:
+                game_embed = discord.Embed(color=discord.Color.green())
+                if(game.is_discounted):
+                    channel = client.get_channel(str(notiChannel[serverID]))
+                    disc_amt = str(game.discount_amount * 100)
+                    message = game.title+" is currently on sale!"
+                    game_embed.title = game.title
+                    game_embed.set_image(url=game.header_url)
+                    game_embed.description = game.title+" is currently "+disc_amt+"% off!\nDiscounted Price: "+game.discount_price
+                    await channel.send(content=message, embed=game_embed)
+                
+
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+        self.serverDiscUpdate.start()
         #init_wishlists()
-    
+
+    @commands.hybrid_command(name="set_noti_channel", description="Sets the channel for Steam BOSS to notify you in to the calling channel.")
+    async def set_noti_channel(self, ctx: commands.Context):
+        serverID = ctx.message.guild.id
+        notiChannel[serverID] = ctx.channel.id
+        
+        await ctx.send(content= ctx.channel.id+" Notification channel set.")
+
     # @commands.hybrid_command(name="hello_boss", description="Replies with hello. Used for testing!")
     # async def hello_boss(self, ctx: commands.Context) -> None:
     #    await ctx.send("Hello BOSS!")
