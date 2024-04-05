@@ -13,7 +13,6 @@ personalWL = {} # Stores by user id
 serverWL = {} # Stores by server id
 PagepersonalWL = {} #Stores by user id, pages
 PageserverWL = {} #Stores by server id, pages
-client = discord.Client
 notiChannel = {}
 
 # TODO: Saves wishlist data into files
@@ -41,13 +40,13 @@ def init_wishlists():
 
 class SteamBossCommands(commands.GroupCog, name="wishlist"):
     #function that runs every __  minutes to list discounted games
-    @tasks.loop(seconds = 20)
+    @tasks.loop(minutes = 15)
     async def serverDiscUpdate(self):
         for serverID in serverWL:
             for game in serverWL[serverID]:
                 game_embed = discord.Embed(color=discord.Color.green())
                 if(game.is_discounted):
-                    channel = client.get_channel(str(notiChannel[serverID]))
+                    channel = self.bot.get_channel(notiChannel[serverID])
                     disc_amt = str(game.discount_amount * 100)
                     message = game.title+" is currently on sale!"
                     game_embed.title = game.title
@@ -66,7 +65,7 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
         serverID = ctx.message.guild.id
         notiChannel[serverID] = ctx.channel.id
         
-        await ctx.send(content= ctx.channel.id+" Notification channel set.")
+        await ctx.send(content=" Notification channel set.")
 
     # @commands.hybrid_command(name="hello_boss", description="Replies with hello. Used for testing!")
     # async def hello_boss(self, ctx: commands.Context) -> None:
