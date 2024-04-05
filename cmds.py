@@ -10,6 +10,8 @@ SERVER_WL_SAVE_PATH = "data/wl_server_info.json"
 
 personalWL = {} # Stores by user id
 serverWL = {} # Stores by server id
+PagepersonalWL = {} #Stores by user id, pages
+PageserverWL = {} #Stores by server id, pages
 
 # TODO: Saves wishlist data into files
 def save_wishlists():
@@ -20,6 +22,8 @@ def save_wishlists():
     with open(USER_WL_SAVE_PATH, "w", encoding="utf-8") as user_wl, open(SERVER_WL_SAVE_PATH, "w", encoding="utf-8") as server_wl:
         json.dump(personalWL, user_wl)
         json.dump(serverWL, server_wl)
+        json.dump(PagepersonalWL, user_wl)
+        json.dump(PageserverWL,server_wl)
 
 # TODO: Checks if there's pre-existing data, load it if so
 def init_wishlists():
@@ -27,6 +31,8 @@ def init_wishlists():
         with open(USER_WL_SAVE_PATH, "r+", encoding="utf-8") as user_wl, open(SERVER_WL_SAVE_PATH, "r+", encoding="utf-8") as server_wl:
             personalWL = json.load(user_wl)
             serverWL = json.load(server_wl)
+            PagepersonalWL = json.load(user_wl)
+            PageserverWL = json.load(server_wl)
     except FileNotFoundError:
         pass
 
@@ -58,7 +64,10 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
             userID = ctx.author.id
             if(userID not in personalWL):
                 personalWL[userID] = []
+            if (userID not in PagepersonalWL):
+                PagepersonalWL[userID]=[]
             personalWL[userID].append(game_info)
+            PagepersonalWL[userID].append(game_embed);
         else:
             game_embed.description = f"Could not find any game using your search of \"{game}\"."
         
@@ -69,13 +78,52 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
         userID = ctx.author.id
         if userID not in personalWL or len(personalWL[userID]) == 0:
             message = ctx.author.mention + "'s Wishlist is currently empty."
+            await ctx.send(content = message)
         else:
-            list = personalWL[userID]
-            message = ctx.author.mention + "'s Wishlist:\n"
-            if(len(list) > 0):
-                for game in list:
-                    message += (game.title + "\n")
-        await ctx.send(content = message)
+            buttons = [u"\u23EA", u"\u25C0",u"\u25B6",u"\u23E9"]
+            current_page = 0
+            msg = await ctx.send(embed=PagepersonalWL[userID][current_page])
+            
+            for button in buttons:
+                await msg.add_reaction(button)
+            
+            while True:
+                try:
+                    reaction, user = await self.bot.wait_for("reaction_add", check=lambda reaction, user: user == ctx.author and reaction.emoji in buttons, timeout=60.0)
+                except asyncio.TimeoutError:
+                    return print("PageTimeoutError")
+
+                else:
+                    reaction_num=0
+                    previous_page = current_page
+                    if reaction.emoji == buttons[0]:
+                        current_page = 0
+                        reaction_num=0
+                        
+                    elif reaction.emoji == buttons[1]:
+                        reaction_num=1
+                        if current_page > 0:
+                            current_page -= 1
+                            
+                    elif reaction.emoji == buttons[2]:
+                        reaction_num=2
+                        if current_page < len(PagepersonalWL[userID])-1:
+                            current_page += 1
+
+                    elif reaction.emoji == buttons[3]:
+                        current_page = len(PagepersonalWL[userID])-1
+                        reaction_num=3
+                        
+                    if current_page != previous_page:
+                        await msg.edit(embed=PagepersonalWL[userID][current_page])
+                        
+                    elif current_page==len(PagepersonalWL[userID])-1 and current_page!=0:
+                        await ctx.send(content = "You have reached the end of your wishlist.")
+                        
+                    elif current_page==0:
+                        await ctx.send(content = "You are at the beginning of your wishlist.")
+                        
+                    await msg.remove_reaction(buttons[reaction_num], ctx.author)
 
     @commands.hybrid_command(name="delete", description="Deletes a game from the user's personal wishlist.")
     async def delete_personal_wl(self, ctx: commands.Context, game: str) -> None:
@@ -85,11 +133,16 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
         else:
             search = search_steam(game, amount=1)
             game_info = search[0]
+            game_embed = discord.Embed(color=discord.Color.green())
+            game_embed.title = game_info.title
+            game_embed.description = game_info.description
+            game_embed.set_image(url=game_info.header_url)
             list = personalWL[userID]
             if game_info not in list:
                 await ctx.send(content = "Error: " + game_info.title + " is not in " + ctx.author.mention + "'s Wishlist.", ephemeral = True)
             else:
                 list.remove(game_info)
+                PagepersonalWL[userID].remove(game_embed)
                 await ctx.send(content = game_info.title + " was successfully removed from " + ctx.author.mention + "'s Wishlist.", ephemeral = True)
             
     @commands.hybrid_command(name="add_server", description="Adds a game to the server-wide wishlist.")
@@ -107,7 +160,10 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
             serverID = ctx.message.guild.id
             if serverID not in serverWL:
                 serverWL[serverID] = []
+            if (serverID not in PageserverWL):
+                PageserverWL[serverID] = []
             serverWL[serverID].append(game_info)
+            PageserverWL[serverID].append(game_embed)
             
         else:
             game_embed.description = f"Could not find any game using your search of \"{game}\"."
@@ -120,12 +176,50 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
         if serverID not in serverWL or len(serverWL[serverID]) == 0:
             await ctx.send("Server Wishlist is currently empty.")
         else:
-            list = serverWL[serverID]
-            message = "Server Wishlist:\n"
-            if(len(list) > 0):
-                for game in list:
-                    message += (game.title + "\n")
-            await ctx.send(content = message)
+            buttons = [u"\u23EA", u"\u25C0",u"\u25B6",u"\u23E9"]
+            current_page = 0
+            msg = await ctx.send(embed=PageserverWL[serverID][current_page])
+            
+            for button in buttons:
+                await msg.add_reaction(button)
+            
+            while True:
+                try:
+                    reaction, user = await self.bot.wait_for("reaction_add", check=lambda reaction, user: user == ctx.author and reaction.emoji in buttons, timeout=60.0)
+                except asyncio.TimeoutError:
+                    return print("PageTimeoutError")
+
+                else:
+                    reaction_num=0
+                    previous_page = current_page
+                    if reaction.emoji == buttons[0]:
+                        current_page = 0
+                        reaction_num=0
+                        
+                    elif reaction.emoji == buttons[1]:
+                        reaction_num=1
+                        if current_page > 0:
+                            current_page -= 1
+                            
+                    elif reaction.emoji == buttons[2]:
+                        reaction_num=2
+                        if current_page < len(PageserverWL[serverID])-1:
+                            current_page += 1
+
+                    elif reaction.emoji == buttons[3]:
+                        current_page = len(PageserverWL[serverID])-1
+                        reaction_num=3
+                        
+                    if current_page != previous_page:
+                        await msg.edit(embed=PageserverWL[serverID][current_page])
+                        
+                    elif current_page==len(PageserverWL[serverID])-1 and current_page!=0:
+                        await ctx.send(content = "You have reached the end of your wishlist.")
+                        
+                    elif current_page==0:
+                        await ctx.send(content = "You are at the beginning of your wishlist.")
+                        
+                    await msg.remove_reaction(buttons[reaction_num], ctx.author)
 
     @commands.hybrid_command(name="delete_server", description="Deletes a game from the server-wide wishlist.")
     async def delete_server_wl(self, ctx: commands.Context, game: str) -> None:
@@ -135,11 +229,16 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
         else:
             search = search_steam(game, amount=1)
             game_info = search[0]
+            game_embed = discord.Embed(color=discord.Color.green())
+            game_embed.title = game_info.title
+            game_embed.description = game_info.description
+            game_embed.set_image(url=game_info.header_url)
             list = serverWL[serverID]
             if game_info not in list:
                 await ctx.send("Error: " + game_info.title + " is not in Server Wishlist.")
             else:
                 list.remove(game_info)
+                PageserverWL[serverID].remove(game_embed)
                 await ctx.send(game_info.title + " was successfully removed from Server Wishlist.")
 
     @commands.hybrid_command(name="reviews", description="View the top reviews for a given game.")
