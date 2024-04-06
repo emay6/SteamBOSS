@@ -10,10 +10,12 @@ USER_WL_SAVE_PATH = "data/wl_user_info.json"
 SERVER_WL_SAVE_PATH = "data/wl_server_info.json"
 
 personalWL = {} # Stores by user id
+memberList = {}
 serverWL = {} # Stores by server id
 PagepersonalWL = {} #Stores by user id, pages
 PageserverWL = {} #Stores by server id, pages
 notiChannel = {}
+discord.AllowedMentions.all = True
 
 # TODO: Saves wishlist data into files
 def save_wishlists():
@@ -40,24 +42,41 @@ def init_wishlists():
 
 class SteamBossCommands(commands.GroupCog, name="wishlist"):
     #function that runs every __  minutes to list discounted games
-    @tasks.loop(minutes = 15)
+    @tasks.loop(seconds = 20)
     async def serverDiscUpdate(self):
         for serverID in serverWL:
+            message = "\n@everyone\n"
             for game in serverWL[serverID]:
                 game_embed = discord.Embed(color=discord.Color.green())
+                message += "***SALE ALERT***\n"
                 if(game.is_discounted):
                     channel = self.bot.get_channel(notiChannel[serverID])
-                    disc_amt = str(game.discount_amount * 100)
-                    message = game.title+" is currently on sale!"
+                    disc_amt = int(game.discount_amount * 100)
+                    message += game.title+" is currently on sale!\n"
                     game_embed.title = game.title
                     game_embed.set_image(url=game.header_url)
-                    game_embed.description = game.title+" is currently "+disc_amt+"% off!\nDiscounted Price: "+game.discount_price
+                    game_embed.description = game.title+" is currently "+str(disc_amt)+"% off!\nDiscounted Price: "+game.discount_price
                     await channel.send(content=message, embed=game_embed)
-                
+
+    @tasks.loop(seconds = 20)
+    async def personalDiscUpdate(self):
+        for userID in personalWL:
+            for game in personalWL[userID]:
+                game_embed = discord.Embed(color=discord.Color.green())
+                member = memberList[userID]
+                if(game.is_discounted):
+                    message = "**SALE ALERT**\n"
+                    disc_amt = int(game.discount_amount * 100)
+                    message += game.title+" is currently on sale!\n"
+                    game_embed.title = game.title
+                    game_embed.set_image(url=game.header_url)
+                    game_embed.description = game.title+" is currently "+str(disc_amt)+"% off!\nDiscounted Price: "+game.discount_price
+                    await member.send(content=message, embed=game_embed)            
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.serverDiscUpdate.start()
+        self.personalDiscUpdate.start()
         #init_wishlists()
 
     @commands.hybrid_command(name="set_noti_channel", description="Sets the channel for Steam BOSS to notify you in to the calling channel.")
@@ -90,6 +109,10 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
             userID = ctx.author.id
             if(userID not in personalWL):
                 personalWL[userID] = []
+                guild = ctx.message.guild
+                print(str(guild))
+                print(str(guild.get_member(userID)))
+                memberList[userID] = ctx.guild.get_member(userID)
             if (userID not in PagepersonalWL):
                 PagepersonalWL[userID]=[]
             personalWL[userID].append(game_info)
