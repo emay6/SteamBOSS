@@ -42,13 +42,13 @@ def init_wishlists():
 
 class SteamBossCommands(commands.GroupCog, name="wishlist"):
     #function that runs every __  minutes to list discounted games
-    @tasks.loop(seconds = 20)
+    @tasks.loop(minutes = 15)
     async def serverDiscUpdate(self):
         for serverID in serverWL:
             message = "\n@everyone\n"
             for game in serverWL[serverID]:
                 game_embed = discord.Embed(color=discord.Color.green())
-                message += "***SALE ALERT***\n"
+                message += "**SALE ALERT**\n"
                 if(game.is_discounted):
                     channel = self.bot.get_channel(notiChannel[serverID])
                     disc_amt = int(game.discount_amount * 100)
@@ -58,12 +58,13 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
                     game_embed.description = game.title+" is currently "+str(disc_amt)+"% off!\nDiscounted Price: "+game.discount_price
                     await channel.send(content=message, embed=game_embed)
 
-    @tasks.loop(seconds = 20)
+    @tasks.loop(minutes = 15)
     async def personalDiscUpdate(self):
         for userID in personalWL:
             for game in personalWL[userID]:
                 game_embed = discord.Embed(color=discord.Color.green())
                 member = memberList[userID]
+                channel = await member.create_dm()
                 if(game.is_discounted):
                     message = "**SALE ALERT**\n"
                     disc_amt = int(game.discount_amount * 100)
@@ -71,7 +72,7 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
                     game_embed.title = game.title
                     game_embed.set_image(url=game.header_url)
                     game_embed.description = game.title+" is currently "+str(disc_amt)+"% off!\nDiscounted Price: "+game.discount_price
-                    await member.send(content=message, embed=game_embed)            
+                    await channel.send(content=message, embed=game_embed)            
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -110,9 +111,8 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
             if(userID not in personalWL):
                 personalWL[userID] = []
                 guild = ctx.message.guild
-                print(str(guild))
-                print(str(guild.get_member(userID)))
-                memberList[userID] = ctx.guild.get_member(userID)
+                member = ctx.author
+                memberList[userID] = member
             if (userID not in PagepersonalWL):
                 PagepersonalWL[userID]=[]
             personalWL[userID].append(game_info)
