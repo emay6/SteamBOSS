@@ -88,12 +88,11 @@ BUTTONS = [u"\u23EA", u"\u25C0",u"\u25B6",u"\u23E9"]
 
 # global variables
 
-personalWL = {} # Stores by user id
-memberList = {} # Stores member objects for personal wishlist notifications
-serverWL = {} # Stores by server id
-PagepersonalWL = {} # Stores by user id, pages
-PageserverWL = {} # Stores by server id, pages
-notiChannel = {} # stores the channel that server wishlist notifications are given on
+personal_wishlists = {} # Stores by user id
+member_list = {} # Stores member objects for personal wishlist notifications
+server_wishlists = {} # Stores by server id
+game_pages = {} # Game pages (embeds)
+server_noti_channels = {} # stores the channel that server wishlist notifications are given on
 discord.AllowedMentions.all = True
 
 # Misc functions
