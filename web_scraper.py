@@ -155,18 +155,18 @@ def get_game_reviews(game_id: str, positive: bool = None) -> List[SteamReview]:
     
     return reviews
 
-# Testing code
-if __name__ == "__main__":
-    print("--TESTING WEB_SCRAPER.PY--")
-    if len(sys.argv) == 1:
-        test_game_ids = ["1621310", "2594920", "2778580", "1164050"] # regular game, f2p game, dlc, game on sale
-        game_infos = get_games_info(test_game_ids)
-        for game in game_infos:
-            print("-----------------------")
-            print(game)
-    elif len(sys.argv) == 2:
-        reviews = get_game_reviews(sys.argv[1])
-        for review in reviews:
-            print("-----------------------")
-            print(review)
-            print("URL: " + review.review_url)
+# # Testing code
+# if __name__ == "__main__":
+#     print("--TESTING WEB_SCRAPER.PY--")
+#     if len(sys.argv) == 1:
+#         test_game_ids = ["1621310", "2594920", "2778580", "1599600"] # regular game, f2p game, dlc, game on sale
+#         game_infos = get_games_info(test_game_ids)
+#         for game in game_infos:
+#             print("-----------------------")
+#             print(game)
+#     elif len(sys.argv) == 2:
+#         reviews = get_game_reviews(sys.argv[1])
+#         for review in reviews:
+#             print("-----------------------")
+#             print(review)
+#             print("URL: " + review.review_url)

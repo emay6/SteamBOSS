@@ -1,5 +1,6 @@
 from dataclasses import dataclass, asdict
 from typing import List
+from discord import Embed
 import json
 import os
 
