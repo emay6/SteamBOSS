@@ -10,11 +10,11 @@ USER_WL_SAVE_PATH = "data/wl_user_info.json"
 SERVER_WL_SAVE_PATH = "data/wl_server_info.json"
 
 personalWL = {} # Stores by user id
-memberList = {}
+memberList = {} # Stores member objects for personal wishlist notifications
 serverWL = {} # Stores by server id
-PagepersonalWL = {} #Stores by user id, pages
-PageserverWL = {} #Stores by server id, pages
-notiChannel = {}
+PagepersonalWL = {} # Stores by user id, pages
+PageserverWL = {} # Stores by server id, pages
+notiChannel = {} # stores the channel that server wishlist notifications are given on
 discord.AllowedMentions.all = True
 
 # TODO: Saves wishlist data into files
