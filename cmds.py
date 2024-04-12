@@ -2,7 +2,6 @@ import asyncio
 import discord
 import os
 import json
-import datetime
 from typing import List
 from discord.ext import commands, tasks
 from steam_game import SteamGame
@@ -107,7 +106,7 @@ def get_page_list(games: List[SteamGame]) -> List[discord.Embed]:
     
     return pages
 
-def create_embed(color: discord.Color, msg: str):
+def create_embed_str(color: discord.Color, msg: str):
     return discord.Embed(color=color, description=msg)
 
 def create_embed(game: SteamGame):
@@ -227,9 +226,9 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
             
             personal_wishlists[user_id].append(game_info)
         else:
-            game_embed = create_embed(f"Could not find any game using your search of \"{game}\".")
+            game_embed = create_embed_str(discord.Color.red(), f"Could not find any game using your search of \"{game}\".")
         
-        await ctx.send(content=message, embed=game_embed, view=self.get_reviews_view(game_info.id), ephemeral=True)
+        await ctx.send(content=message, embed=game_embed, view=self.get_reviews_view(game_info.id) if message != "" else None, ephemeral=True)
             
     @commands.hybrid_command(name="print", description="Prints the user's personal wishlist.")
     async def print_personal_wl(self, ctx: commands.Context) -> None:
@@ -275,11 +274,10 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
             if (game_info.id not in game_pages):
                 game_pages[game_info.id] = game_embed
             server_wishlists[server_id].append(game_info)
-            
         else:
-            game_embed = create_embed(f"Could not find any game using your search of \"{game}\".")
+            game_embed = create_embed_str(discord.Color.red(), f"Could not find any game using your search of \"{game}\".")
         
-        await ctx.send(content=message, embed=game_embed, ephemeral=True if message == "" else False)
+        await ctx.send(content=message, embed=game_embed, view=self.get_reviews_view(game_info.id) if message != "" else None, ephemeral=True if message == "" else False)
     
     @commands.hybrid_command(name="print_server", description="Prints the server-wide wishlist.")
     async def print_server_wl(self, ctx: commands.Context) -> None:
