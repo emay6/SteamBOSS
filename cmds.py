@@ -88,10 +88,13 @@ BUTTONS = [u"\u23EA", u"\u25C0",u"\u25B6",u"\u23E9"]
 # global variables
 
 personal_wishlists = {} # Stores by user id
+PersonalDiscountFilterL = {} #Stored via user ID similar to personal wishlists
 member_list = {} # Stores member objects for personal wishlist notifications
 server_wishlists = {} # Stores by server id
+ServerDiscountFilterL = {} #Stored via server ID similar to server wishlists
 game_pages = {} # Game pages (embeds)
 server_noti_channels = {} # stores the channel that server wishlist notifications are given on
+ServerReviewFilter = {} #Stores if reviews should be only positive or negative by server id
 discord.AllowedMentions.all = True
 
 # Misc functions
@@ -132,6 +135,7 @@ def save_wishlists():
         json.dump(server_wishlists, server_wl)
         # json.dump(personal_wishlist_pages, user_wl)
         # json.dump(server_wishlist_pages,server_wl)
+        
         # json.dump(PersonalDiscountFilterL,user_wl)
         # json.dump(ServerDiscountFilterL,server_wl)
         # PersonalDiscountFilterL[user_wl]=0
@@ -145,31 +149,39 @@ def init_wishlists():
             serverWL = json.load(server_wl)
             PagepersonalWL = json.load(user_wl)
             PageserverWL = json.load(server_wl)
-            # PersonalDiscountFilterL = json.load(user_wl)
-            # ServerDiscountFilterL = json.load(server_wl)
+            PersonalDiscountFilterL = json.load(user_wl)
+            ServerDiscountFilterL = json.load(server_wl)
     except FileNotFoundError:
         pass
 
 class SteamBossCommands(commands.GroupCog, name="wishlist"):
     #function that runs every __  minutes to list discounted games
-    @tasks.loop(minutes = 15)
+    @tasks.loop(minutes = 10)
     async def serverDiscUpdate(self):
         for server_id in server_wishlists:
             message = "\n@everyone\n"
             for game in server_wishlists[server_id]:
-                message += "**SALE ALERT**\n"
-                if(game.is_discounted):
+                if (server_id not in ServerDiscountFilterL):
+                    DiscountFilter = 0
+                else:
+                    DiscountFilter = ServerDiscountFilterL[server_id]
+                if(game.is_discounted and DiscountFilter<=game.discount_amount):
+                    message += "**SALE ALERT**\n"
                     channel = self.bot.get_channel(server_noti_channels[server_id])
                     message += game.title+" is currently on sale!\n"
                     await channel.send(content=message, embed=game_pages[game.id])
 
-    @tasks.loop(minutes = 15)
+    @tasks.loop(minutes = 10)
     async def personalDiscUpdate(self):
         for user_id in personal_wishlists:
             for game in personal_wishlists[user_id]:
                 member = member_list[user_id]
                 channel = await member.create_dm()
-                if(game.is_discounted):
+                if (user_id not in PersonalDiscountFilterL):
+                    DiscountFilter = 0
+                else:
+                    DiscountFilter = PersonalDiscountFilterL[user_id]
+                if(game.is_discounted and DiscountFilter<=game.discount_amount):
                     message = "**SALE ALERT**\n"
                     message += game.title + " is currently on sale!\n"
                     await channel.send(content=message, embed=game_pages[game.id])            
@@ -187,18 +199,47 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
         
         await ctx.send(content="Notification channel set.", ephemeral=True)
 
-    #@commands.hybrid_command(name="set_personal_discount_filter", description="Sets a discount filter for personal wishlist.")
-    #async def set_discount_personal(self, ctx: commands.Context, discountamount: float) -> None:
-    #    userID = ctx.author.id
-    #    if (discountamount<0 or discountamount>100):
-    #        message = "Invalid Discount Filter Amount, please put in a number from 0 to 100!"
-    #        await ctx.send(content = message)
-    #        return
-    #    TrueDiscountAmount = discountamount/100
-    #    PersonalDiscountFilterL[userID]=TrueDiscountAmount
-    #    message = "Successfully set Discount Filter for Personal Wishlist to ",discountamount,"."
-    #    await ctx.send(content = message)
-    #commented command to set a discount filter to adding to personal wishlist
+    @commands.hybrid_command(name="set_personal_discount_filter", description="Sets a discount filter for personal wishlist.")
+    async def set_discount_personal(self, ctx: commands.Context, discountamount: float) -> None:
+        userID = ctx.author.id
+        if (discountamount<0 or discountamount>100):
+            message = "Invalid Discount Filter Amount, please put in a number from 0 to 100!"
+            await ctx.send(content = message)
+            return
+        TrueDiscountAmount = discountamount/100
+        
+        PersonalDiscountFilterL[userID]=TrueDiscountAmount
+        message = "Successfully set Discount Filter for Personal Wishlist to " + str(discountamount) + "%."
+        await ctx.send(content = message)
+        
+    @commands.hybrid_command(name="set_server_discount_filter", description="Sets a discount filter for server wishlist.")
+    async def set_discount_server(self, ctx: commands.Context, discountamount: float) -> None:
+        server_id = ctx.message.guild.id
+        if (discountamount<0 or discountamount>100):
+            message = "Invalid Discount Filter Amount, please put in a number from 0 to 100!"
+            await ctx.send(content = message)
+            return
+        TrueDiscountAmount = discountamount/100
+        
+        ServerDiscountFilterL[server_id]=TrueDiscountAmount
+        message = "Successfully set Discount Filter for Server Wishlist to " + str(discountamount) + "%."
+        await ctx.send(content = message)
+        
+    @commands.hybrid_command(name="set_review_filter", description="Sets a review filter all reviews in discord server.")
+    async def set_review_filter(self, ctx: commands.Context, reviewstr: str) -> None:
+        server_id = ctx.message.guild.id
+        if (reviewstr=="Positive" or reviewstr=="positive"):
+            message = "Successfully set Review Filter to Postive Only."
+            ServerReviewFilter[server_id]=True
+        elif(reviewstr=="Negative" or reviewstr=="Negative"):
+            message = "Successfully set Review Filter to Negative Only."
+            ServerReviewFilter[server_id]=False
+        elif(reviewstr=="Neither" or reviewstr=="neither"):
+            message = "Successfully set Review Filter to Postive and Negative."
+            ServerReviewFilter[server_id]=None
+        else:
+            message = "Invalid input, please put a valid input!"
+        await ctx.send(content = message)
 
     @commands.hybrid_command(name="add", description="Adds a game to the user's personal wishlist.")
     async def add_personal_wl(self, ctx: commands.Context, game: str) -> None:
@@ -208,12 +249,6 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
 
         if len(search) > 0:
             game_info = search[0]
-        #    if (game_info.discount_amount<PersonalDiscountFilterL[userID]):
-        #        message = "Game does not meet the set Discount Filter so it has not been added."
-        #        await ctx.send(content = message)
-        #        return
-        #If we want to filter adding to wishlist by discount, ask later
-            
             message = "The following game was successfully added to your wishlist."
             game_embed = create_embed(game_info)
 
@@ -306,6 +341,9 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
 
     @commands.hybrid_command(name="reviews", description="View the top reviews for a given game.")
     async def get_game_reviews(self, ctx: commands.Context, game: str, view_positive: bool = None) -> None:
+        server_id = ctx.message.guild.id
+        if (server_id in ServerReviewFilter):
+            view_positive=ServerReviewFilter[server_id]
         page = PageMessage(self.get_review_pages(game, view_positive), ctx, self.bot, ctx.author)
         await page.init_pages()
     
