@@ -228,13 +228,13 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
     @commands.hybrid_command(name="set_review_filter", description="Sets a review filter all reviews in discord server.")
     async def set_review_filter(self, ctx: commands.Context, reviewstr: str) -> None:
         server_id = ctx.message.guild.id
-        if (reviewstr=="Positive" or reviewstr=="positive"):
+        if (reviewstr.lower() == "positive"):
             message = "Successfully set Review Filter to Postive Only."
             ServerReviewFilter[server_id]=True
-        elif(reviewstr=="Negative" or reviewstr=="Negative"):
+        elif(reviewstr.lower() == "negative"):
             message = "Successfully set Review Filter to Negative Only."
             ServerReviewFilter[server_id]=False
-        elif(reviewstr=="Neither" or reviewstr=="neither"):
+        elif(reviewstr.lower() == "neither"):
             message = "Successfully set Review Filter to Postive and Negative."
             ServerReviewFilter[server_id]=None
         else:
@@ -388,7 +388,7 @@ class SteamBossCommands(commands.GroupCog, name="wishlist"):
         msg = await interaction.original_response()
         ctx = await self.bot.get_context(msg)
 
-        pages = PageMessage(self.get_review_pages(interaction.data["custom_id"]), ctx, self.bot, interaction.user)
+        pages = PageMessage(self.get_review_pages(interaction.data["custom_id"], ServerReviewFilter[ctx.guild.id] if ctx.guild.id in ServerReviewFilter else None), ctx, self.bot, interaction.user)
         await pages.init_pages()
     
         
